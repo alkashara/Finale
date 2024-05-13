@@ -19,7 +19,7 @@ services:
       context: ./db
       dockerfile: Dockerfile
     ports:
-      - ${DB_PORT}:5432
+      - "${DB_PORT}:5432"
     container_name: db-image
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -58,7 +58,7 @@ services:
       context: ./db_repl
       dockerfile: Dockerfile
     ports:
-      - ${DB_REPL_PORT}:5432
+      - "${DB_REPL_PORT}:5432"
     container_name: db-repl-image
     environment:
       PGUSER: ${DB_REPL_USER}
