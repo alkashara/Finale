@@ -44,7 +44,7 @@ services:
       -c hot_standby_feedback=on
       -c password_encryption=scram-sha-256
     volumes:
-      - ./db_prim/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       mynetwork:
         ipv4_address: ${DB_HOST}
