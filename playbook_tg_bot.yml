@@ -1,0 +1,19 @@
+---
+- name: Deploy and configure Telegram Bot
+  hosts: bot_host
+  become: yes
+  tasks:
+    - name: Clone bot repository
+      git:
+        repo: https://github.com/alkashara/PT_START2024
+        dest: bot/bot.py
+
+    - name: Install bot dependencies
+      pip:
+        requirements: bot/requirements.txt
+
+    - name: Start bot service
+      systemd:
+        name: bot_service_name
+        state: started
+        enabled: yes

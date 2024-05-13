@@ -1,0 +1,3 @@
+db_host ansible_host=192.168.209.154 ansible_user=kali ansible_password=kali
+db_repl_host ansible_host=192.168.209.152 ansible_user=kali ansible_password=kali
+bot_host ansible_host=192.168.209.150 ansible_user=kali ansible_password=kali
