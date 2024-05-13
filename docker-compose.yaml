@@ -11,8 +11,7 @@ services:
     volumes:
       - ./bot:/bot
     networks:
-      mynetwork:
-        ipv4_address: ${RM_HOST}
+      - mynetwork
   
   db:
     image: db
@@ -46,8 +45,7 @@ services:
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      mynetwork:
-        ipv4_address: ${DB_HOST}
+      - mynetwork
     healthcheck:
       test: 'pg_isready -U ${DB_USER} --dbname=${DB_DATABASE}'
       interval: 10s
@@ -70,8 +68,7 @@ services:
     depends_on:
       - db
     networks:
-      mynetwork:
-        ipv4_address: ${DB_REPL_HOST}
+      - mynetwork
 
 networks:
   mynetwork:
