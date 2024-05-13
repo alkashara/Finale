@@ -15,9 +15,9 @@ services:
         ipv4_address: ${RM_HOST}
   
   db:
-    image: db_prim
+    image: db
     build:
-      context: ./db_prim
+      context: ./db
       dockerfile: Dockerfile
     ports:
       - ${DB_PORT}:5432
