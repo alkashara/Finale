@@ -1,0 +1,7 @@
+logging
+psycopg2
+paramiko
+re
+python-dotenv
+telebot
+os
