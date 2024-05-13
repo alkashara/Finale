@@ -111,7 +111,7 @@ def save_emails_command(message):
                 insert_query = f"INSERT INTO emails (email) VALUES ('{email}')"
                 execute_sql_query(insert_query)
             bot.reply_to(message, "Email-адреса успешно сохранены в базе данных.")
-        except Exception as e
+        except Exception as e:
             logger.error(f"Ошибка при сохранении email в базе данных: {e}")
             bot.reply_to(message, "Произошла ошибка при сохранении email в базе данных.")
     else:
