@@ -14,11 +14,11 @@ RUN echo "host replication all 0.0.0.0/0 md5" >> /var/lib/postgresql/data/pg_hba
 
 # Создание слота репликации и другие операции в init.sql
 RUN echo "CREATE USER ${DB_REPL_USER} WITH REPLICATION ENCRYPTED PASSWORD '${DB_REPL_PASSWORD}';" >> /docker-entrypoint-initdb.d/init.sql && \
-    echo "SELECT pg_create_physical_replication_slot('replication_slot');" >> /docker-entrypoint-initdb.d/init.sql && \
+    echo "SELECT pg_create_physical_replication_slot('replication_slot');" >> /docker-entrypoint-initdb.d/init.sql
 
 # Экспозинг порта
 ARG DB_PORT
-EXPOSE $DB_PORT
+ENV POSTGRES_DB_PORT=${DB_PORT}
 
 # Создание директории для архивации WAL-логов и установка прав доступа
 RUN mkdir -p /oracle/pg_data/archive && \
