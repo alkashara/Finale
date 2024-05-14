@@ -57,7 +57,7 @@ def execute_sql_query(query):
         return f"Произошла ошибка при выполнении SQL запроса: {e}"
 
 # Создание экземпляра бота
-bot = TeleBot(os.getenv('TELEGRAM_TOKEN'))
+bot = TeleBot(os.getenv('TOKEN'))
 
 # Обработчик команды /get_emails
 @bot.message_handler(commands=['get_emails'])
