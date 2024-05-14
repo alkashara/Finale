@@ -15,10 +15,6 @@ RUN echo "host replication all 0.0.0.0/0 md5" >> /var/lib/postgresql/data/pg_hba
 # Создание слота репликации и другие операции в init.sql
 RUN echo "CREATE USER ${DB_REPL_USER} WITH REPLICATION ENCRYPTED PASSWORD '${DB_REPL_PASSWORD}';" >> /docker-entrypoint-initdb.d/init.sql && \
     echo "SELECT pg_create_physical_replication_slot('replication_slot');" >> /docker-entrypoint-initdb.d/init.sql && \
-    echo "CREATE TABLE IF NOT EXISTS Emails(ID SERIAL PRIMARY KEY, mail_addr VARCHAR(100) NOT NULL);" >> /docker-entrypoint-initdb.d/init.sql && \
-    echo "CREATE TABLE IF NOT EXISTS Phones(ID SERIAL PRIMARY KEY, phone_num VARCHAR(20) NOT NULL);" >> /docker-entrypoint-initdb.d/init.sql && \
-    echo "INSERT INTO Emails (mail_addr) VALUES ('test1@test.org'), ('test2@test.dot');" >> /docker-entrypoint-initdb.d/init.sql && \
-    echo "INSERT INTO Phones (phone_num) VALUES ('89323243456'), ('8 (999) 123 34 45');" >> /docker-entrypoint-initdb.d/init.sql
 
 # Экспозинг порта
 ARG DB_PORT
@@ -29,4 +25,4 @@ RUN mkdir -p /oracle/pg_data/archive && \
     chown -R postgres:postgres /oracle/pg_data
 
 # Запуск PostgreSQL
-CMD ["postgres"]
+CMD ["tail", "-f", "/dev/null"]
