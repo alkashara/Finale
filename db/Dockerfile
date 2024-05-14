@@ -24,9 +24,6 @@ ENV POSTGRES_DB_PORT=${DB_PORT}
 # Создание директории для архивации WAL-логов и установка прав доступа
 RUN mkdir -p /oracle/pg_data/archive && \
     chown -R postgres:postgres /oracle/pg_data
-
-# Установка параметра listen_addresses в postgresql.conf после копирования файла
-RUN sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /var/lib/postgresql/data/postgresql.conf
-
+    
 # Запуск PostgreSQL
 CMD ["tail", "-f", "/dev/null"]
