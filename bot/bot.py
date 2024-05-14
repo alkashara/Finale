@@ -70,10 +70,14 @@ def get_emails(message):
 # Обработчик команды /get_phone_numbers
 @bot.message_handler(commands=['get_phone_numbers'])
 def get_phone_numbers(message):
-    phone_numbers_query = "SELECT * FROM phone_numbers;"
+    phone_numbers_query = "SELECT * FROM phonenums;"
     phone_numbers_result = execute_sql_query(phone_numbers_query)
-    formatted_result = "\n".join([f"ID: {row[0]}, Phone Number: {row[1]}" for row in phone_numbers_result])
-    bot.reply_to(message, formatted_result)
+    
+    if phone_numbers_result:
+        formatted_result = "\n".join([f"ID: {row[0]}, Phone Number: {row[1]}" for row in phone_numbers_result])
+        bot.reply_to(message, formatted_result)
+    else:
+        bot.reply_to(message, "No phone numbers found.")
 
 # Обработчик команды /get_repl_logs
 @bot.message_handler(commands=['get_repl_logs'])
