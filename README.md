@@ -6,15 +6,17 @@
 
 Перед установкой проекта, следует убедится, что у вас установлен Docker и Docker-compose
 
-git clone https://github.com/alkashara/PT_START2024
+Установка:
 
-cd PT_START2024
+  git clone https://github.com/alkashara/PT_START2024
+
+  cd PT_START2024
 
 *Перед запуском проекта, следует добавить файл .env(выдается разработчиком)
 
-docker-compose build
+  docker-compose build
 
-docker-compose up -d
+  docker-compose up -d
 
 
 #Есть установка через Playbook, он находится в ветке "ansible"
