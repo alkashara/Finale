@@ -9,4 +9,5 @@
 Запустите playbook и все поставиться автоматически!
 
 source .env
+
 ansible-playbook -i inventory playbook_tg_bot.yml
