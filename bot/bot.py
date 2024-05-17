@@ -33,10 +33,11 @@ def ssh_command(command):
     return output
 
 # Функция для выполнения SQL запросов к базе данных PostgreSQL
-def execute_sql_query(query):
+def execute_sql_query(query, params=None, fetch=True):
     try:
         # Подключение к базе данных
         connection = psycopg2.connect(host=os.getenv('DB_HOST'),
+                                      port=os.getenv('DB_PORT'),
                                       user=os.getenv('DB_USER'),
                                       password=os.getenv('DB_PASSWORD'),
                                       database=os.getenv('DB_DATABASE'))
@@ -44,8 +45,18 @@ def execute_sql_query(query):
         cursor = connection.cursor()
 
         # Выполнение SQL запроса
-        cursor.execute(query)
-        result = cursor.fetchall()
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+
+        # Если нужно получить результат запроса
+        result = None
+        if fetch:
+            result = cursor.fetchall()
+
+        # Подтверждение выполнения изменений в базе данных
+        connection.commit()
 
         # Закрытие соединения с базой данных
         cursor.close()
@@ -53,8 +64,8 @@ def execute_sql_query(query):
 
         return result
     except Exception as e:
-        logger.error(f"Ошибка при выполнении SQL запроса: {e}")
-        return f"Произошла ошибка при выполнении SQL запроса: {e}"
+        print(f"Ошибка при выполнении SQL запроса: {e}")
+        return None
 
 # Создание экземпляра бота
 bot = TeleBot(os.getenv('TOKEN'))
@@ -66,18 +77,6 @@ def get_emails(message):
     emails_result = execute_sql_query(emails_query)
     formatted_result = "\n".join([f"ID: {row[0]}, Email: {row[1]}" for row in emails_result])
     bot.reply_to(message, formatted_result)
-
-# Обработчик команды /get_phone_numbers
-@bot.message_handler(commands=['get_phone_numbers'])
-def get_phone_numbers(message):
-    phone_numbers_query = "SELECT * FROM phonenums;"
-    phone_numbers_result = execute_sql_query(phone_numbers_query)
-    
-    if phone_numbers_result:
-        formatted_result = "\n".join([f"ID: {row[0]}, Phone Number: {row[1]}" for row in phone_numbers_result])
-        bot.reply_to(message, formatted_result)
-    else:
-        bot.reply_to(message, "No phone numbers found.")
 
 # Обработчик команды /get_repl_logs
 @bot.message_handler(commands=['get_repl_logs'])
@@ -101,25 +100,21 @@ def process_find_email(message):
         email_list = "\n".join(found_emails)
         bot.reply_to(message, f"Найденные email-адреса:\n{email_list}\nХотите сохранить их в базе данных? Отправьте /save_emails")
         # Ожидание ответа пользователя после команды /save_emails
-        bot.register_next_step_handler(message, save_emails_command)
+        bot.register_next_step_handler(message, save_emails_command, found_emails)
     else:
         bot.reply_to(message, "Email-адреса не найдены в тексте.")
 
-def save_emails_command(message):
-    if message.text:
-        user_message = message.text
-        email_list = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', user_message)
-        try:
-            for email in email_list:
-                print("Сохраняем email:", email)
-                insert_query = f"INSERT INTO emails (email) VALUES ('{email}')"
-                execute_sql_query(insert_query)
-            bot.reply_to(message, "Email-адреса успешно сохранены в базе данных.")
-        except Exception as e:
-            logger.error(f"Ошибка при сохранении email в базе данных: {e}")
-            bot.reply_to(message, "Произошла ошибка при сохранении email в базе данных.")
-    else:
-        bot.reply_to(message, "Не удалось определить текст сообщения, содержащего email-адреса.")
+
+def save_emails_command(message, found_emails):
+    try:
+        for email in found_emails:
+            print("Сохраняем email:", email)
+            insert_query = "INSERT INTO emails (email) VALUES ('{}')".format(email)
+            execute_sql_query(insert_query, fetch=False)
+        bot.reply_to(message, "Email-адреса успешно сохранены в базе данных.")
+    except Exception as e:
+        logger.error(f"Ошибка при сохранении email в базе данных: {e}")
+        bot.reply_to(message, "Произошла ошибка при сохранении email в базе данных.")
 
 @bot.message_handler(commands=['find_phone_number'])
 def find_phone_number(message):
@@ -134,28 +129,19 @@ def process_find_phone_number(message):
         formatted_phone_numbers = ["-".join(filter(None, phone)) for phone in found_phone_numbers]
         phone_numbers_text = "\n".join(formatted_phone_numbers)
         bot.reply_to(message, f"Найденные номера телефонов:\n{phone_numbers_text}\nХотите сохранить их в базе данных? Отправьте /save_phone_numbers")
+        bot.register_next_step_handler(message, save_phone_numbers_command, formatted_phone_numbers)
     else:
         bot.reply_to(message, "Номера телефонов не найдены в тексте.")
 
-@bot.message_handler(commands=['save_phone_numbers'])
-def save_phone_numbers(message):
-    save_phone_numbers_command(message)
-
-def save_phone_numbers_command(message):
-    if message.text:
-        user_message = message.text
-        phone_numbers_list = re.findall(r'(?:(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{2,4})(?: *x(\d+))?)', user_message)
-        try:
-            for phone_number in phone_numbers_list:
-                formatted_phone_number = f"{phone_number[0]}-{phone_number[1]}-{phone_number[2]}-{phone_number[3]}"
-                print(formatted_phone_number)
-                insert_query = f"INSERT INTO phone_numbers (phone_number) VALUES ('{formatted_phone_number}')"
-                execute_sql_query(insert_query)
-            bot.reply_to(message, "Номера телефона успешно сохранены в базе данных.")
-        except Exception as e:
-            logger.error(f"Ошибка при сохранении номера телефона в базе данных: {e}")
-            bot.reply_to(message, "Произошла ошибка при сохранении номера телефона в базе данных.")
-    else:
-        bot.reply_to(message, "Не удалось определить текст сообщения, содержащего номера телефона.")
+def save_phone_numbers_command(message, formatted_phone_numbers):
+    try:
+        for phone_number in formatted_phone_numbers:
+            print(phone_number)
+            insert_query = "INSERT INTO phone_numbers (phone_number) VALUES ('{}')".format(phone_number)
+            execute_sql_query(insert_query, fetch=False)
+        bot.reply_to(message, "Номера телефона успешно сохранены в базе данных.")
+    except Exception as e:
+        logger.error(f"Ошибка при сохранении номера телефона в базе данных: {e}")
+        bot.reply_to(message, "Произошла ошибка при сохранении номера телефона в базе данных.")
 
 bot.polling()
