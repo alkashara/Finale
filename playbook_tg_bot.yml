@@ -1,19 +1,21 @@
 ---
-- name: Deploy and configure Telegram Bot
-  hosts: bot_host
-  become: yes
+- name: Deploy Docker Project
+  hosts: your_target_hosts
+  become: true
+
+  vars:
+    repo_url: "https://github.com/alkashara/PT_START2024.git"
+    project_dir: "/opt/PT_START2024"
+
   tasks:
-    - name: Clone bot repository
+    - name: Clone the repository
       git:
-        repo: https://github.com/alkashara/PT_START2024
-        dest: bot/bot.py
+        repo: "{{ repo_url }}"
+        dest: "{{ project_dir }}"
+        update: yes
 
-    - name: Install bot dependencies
-      pip:
-        requirements: bot/requirements.txt
-
-    - name: Start bot service
-      systemd:
-        name: bot_service_name
-        state: started
-        enabled: yes
+    - name: Change to project directory and bring up Docker Compose
+      shell: |
+        docker-compose up -d
+      args:
+        chdir: "{{ project_dir }}"
