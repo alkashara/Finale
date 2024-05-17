@@ -1,21 +1,110 @@
 ---
-- name: Deploy Docker Project
-  hosts: your_target_hosts
+- name: Setup and Deploy TG Bot
+  hosts: all
   become: true
 
   vars:
-    repo_url: "https://github.com/alkashara/PT_START2024.git"
-    project_dir: "/opt/PT_START2024"
+    db_user: "{{ DB_USER }}"
+    db_password: "{{ DB_PASSWORD }}"
+    db_host: "{{ DB_HOST }}"
+    db_port: "{{ DB_PORT }}"
+    db_database: "{{ DB_DATABASE }}"
+    db_repl_user: "{{ DB_REPL_USER }}"
+    db_repl_password: "{{ DB_REPL_PASSWORD }}"
+    db_repl_host: "{{ DB_REPL_HOST }}"
+    db_repl_port: "{{ DB_REPL_PORT }}"
+    bot_token: "{{ TOKEN }}"
+    repo_url: "https://github.com/alkashara/PT_START2024"
+    bot_directory: "/opt/tg_bot"
+    pg_hba_conf: "/etc/postgresql/14/main/pg_hba.conf"
 
   tasks:
-    - name: Clone the repository
+    - name: Install required packages
+      apt:
+        name:
+          - git
+          - python3
+          - python3-venv
+          - python3-pip
+          - postgresql
+          - libpq-dev
+          - gcc
+        state: present
+        update_cache: yes
+
+    - name: Remove existing bot directory
+      file:
+        path: "{{ bot_directory }}"
+        state: absent
+      ignore_errors: true
+
+    - name: Clone the bot repository
       git:
         repo: "{{ repo_url }}"
-        dest: "{{ project_dir }}"
-        update: yes
+        dest: "{{ bot_directory }}"
+        version: bot
 
-    - name: Change to project directory and bring up Docker Compose
-      shell: |
-        docker-compose up -d
+    - name: Create virtual environment
+      command: python3 -m venv {{ bot_directory }}/venv
       args:
-        chdir: "{{ project_dir }}"
+        creates: "{{ bot_directory }}/venv"
+
+    - name: Install Python dependencies
+      pip:
+        requirements: "{{ bot_directory }}/bot/requirements.txt"
+        virtualenv: "{{ bot_directory }}/venv"
+
+    - name: Create .env file
+      copy:
+        dest: "{{ bot_directory }}/.env"
+        content: |
+          TOKEN={{ bot_token }}
+          DB_USER={{ db_user }}
+          DB_PASSWORD={{ db_password }}
+          DB_HOST={{ db_host }}
+          DB_PORT={{ db_port }}
+          DB_DATABASE={{ db_database }}
+          DB_REPL_USER={{ db_repl_user }}
+          DB_REPL_PASSWORD={{ db_repl_password }}
+          DB_REPL_HOST={{ db_repl_host }}
+          DB_REPL_PORT={{ db_repl_port }}
+
+    - name: Ensure replication configuration is present in pg_hba.conf
+      lineinfile:
+        path: "{{ pg_hba_conf }}"
+        line: "host replication {{ db_repl_user }} {{ db_repl_host }}/32 md5"
+        state: present
+
+    - name: Ensure PostgreSQL is listening on all interfaces
+      lineinfile:
+        path: /etc/postgresql/14/main/postgresql.conf
+        regexp: "^#listen_addresses = 'localhost'"
+        line: "listen_addresses = '*'"
+        state: present
+
+    - name: Restart PostgreSQL
+      service:
+        name: postgresql
+        state: restarted
+
+    - name: Configure replication user
+      postgresql_user:
+        name: "{{ db_repl_user }}"
+        password: "{{ db_repl_password }}"
+        role_attr_flags: "REPLICATION"
+
+    - name: Start the bot
+      command: "{{ bot_directory }}/venv/bin/python {{ bot_directory }}/bot/bot.py"
+      args:
+        chdir: "{{ bot_directory }}"
+      environment:
+        TOKEN: "{{ bot_token }}"
+        DB_USER: "{{ db_user }}"
+        DB_PASSWORD: "{{ db_password }}"
+        DB_HOST: "{{ db_host }}"
+        DB_PORT: "{{ db_port }}"
+        DB_DATABASE: "{{ db_database }}"
+        DB_REPL_USER: "{{ db_repl_user }}"
+        DB_REPL_PASSWORD: "{{ db_repl_password }}"
+        DB_REPL_HOST: "{{ db_repl_host }}"
+        DB_REPL_PORT: "{{ db_repl_port }}"
