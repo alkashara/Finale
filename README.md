@@ -8,15 +8,15 @@
 
 Установка:
 
-  git clone https://github.com/alkashara/PT_START2024
+1)  git clone https://github.com/alkashara/PT_START2024
 
-  cd PT_START2024
+2)  cd PT_START2024
 
 *Перед запуском проекта, следует добавить файл .env(выдается разработчиком)
 
-  docker-compose build
+3)  docker-compose build
 
-  docker-compose up -d
+4)  docker-compose up -d
 
 
 #Есть установка через Playbook, он находится в ветке "ansible"
@@ -24,8 +24,8 @@
 
 
 Активные команды
-/get_emails - показывает все email в таблице БД;
-/get_phone_numbers - показывает все телефонные номера в таблице БД;
-/find_phone_number - Ищет в вашем тексте все телефонные номера, после этого, предлагает их сохранить в таблицу БД; - /save_phone_numbers
-/find_email - Ищет в вашем тексте все email адреса, после этого, предлагает их сохранить в таблицу БД; - /save_emails
+1)  /get_emails - показывает все email в таблице БД;
+2)  /get_phone_numbers - показывает все телефонные номера в таблице БД;
+3)  /find_phone_number - Ищет в вашем тексте все телефонные номера, после этого, предлагает их сохранить в таблицу БД; - /save_phone_numbers
+4)  /find_email - Ищет в вашем тексте все email адреса, после этого, предлагает их сохранить в таблицу БД; - /save_emails
 /get_repl_logs - Показывает логи вашей БД;
