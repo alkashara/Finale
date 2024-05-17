@@ -78,6 +78,14 @@ def get_emails(message):
     formatted_result = "\n".join([f"ID: {row[0]}, Email: {row[1]}" for row in emails_result])
     bot.reply_to(message, formatted_result)
 
+# Обработчик команды /get_phone_numbers
+@bot.message_handler(commands=['get_phone_numbers'])
+def get_phone_numbers(message):
+    phone_numbers_query = "SELECT * FROM phonenums;"
+    phone_numbers_result = execute_sql_query(phone_numbers_query)
+    formatted_result = "\n".join([f"ID: {row[0]}, Phone Number: {row[1]}" for row in phone_numbers_result])
+    bot.reply_to(message, formatted_result)
+
 # Обработчик команды /get_repl_logs
 @bot.message_handler(commands=['get_repl_logs'])
 def get_release(message):
@@ -99,7 +107,7 @@ def process_find_email(message):
     if found_emails:
         email_list = "\n".join(found_emails)
         bot.reply_to(message, f"Найденные email-адреса:\n{email_list}\nХотите сохранить их в базе данных? Отправьте /save_emails")
-        # Ожидание ответа пользователя после команды /save_emails
+        # Store found emails in user data and register next step handler
         bot.register_next_step_handler(message, save_emails_command, found_emails)
     else:
         bot.reply_to(message, "Email-адреса не найдены в тексте.")
@@ -129,6 +137,7 @@ def process_find_phone_number(message):
         formatted_phone_numbers = ["-".join(filter(None, phone)) for phone in found_phone_numbers]
         phone_numbers_text = "\n".join(formatted_phone_numbers)
         bot.reply_to(message, f"Найденные номера телефонов:\n{phone_numbers_text}\nХотите сохранить их в базе данных? Отправьте /save_phone_numbers")
+        # Store found phone numbers in user data and register next step handler
         bot.register_next_step_handler(message, save_phone_numbers_command, formatted_phone_numbers)
     else:
         bot.reply_to(message, "Номера телефонов не найдены в тексте.")
@@ -137,7 +146,7 @@ def save_phone_numbers_command(message, formatted_phone_numbers):
     try:
         for phone_number in formatted_phone_numbers:
             print(phone_number)
-            insert_query = "INSERT INTO phone_numbers (phone_number) VALUES ('{}')".format(phone_number)
+            insert_query = "INSERT INTO phonenums (phonenum) VALUES ('{}')".format(phone_number)
             execute_sql_query(insert_query, fetch=False)
         bot.reply_to(message, "Номера телефона успешно сохранены в базе данных.")
     except Exception as e:
