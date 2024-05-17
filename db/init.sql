@@ -34,3 +34,9 @@ INSERT INTO emails (email) VALUES ('test1@test.org'), ('test2@test.dot');
 
 -- Вставка данных в таблицу phonenums
 INSERT INTO phonenums (phonenum) VALUES ('89323243456'), ('8 (999) 123 34 45');
+
+-- Предоставление прав пользователю replicator на чтение и запись в таблицу emails
+GRANT SELECT, INSERT ON emails TO replicator;
+
+-- Предоставление прав пользователю replicator на чтение и запись в таблицу phonenums
+GRANT SELECT, INSERT ON phonenums TO replicator;
