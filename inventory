@@ -1,1 +1,16 @@
-#В проекте настроена собственная виртуальная сеть, откуда контейнеры получают свои данные
+all:
+  vars:
+    ansible_connection: local
+    DB_USER: "{{ lookup('env', 'DB_USER') }}"
+    DB_PASSWORD: "{{ lookup('env', 'DB_PASSWORD') }}"
+    DB_HOST: "{{ lookup('env', 'DB_HOST') }}"
+    DB_PORT: "{{ lookup('env', 'DB_PORT') }}"
+    DB_DATABASE: "{{ lookup('env', 'DB_DATABASE') }}"
+    DB_REPL_USER: "{{ lookup('env', 'DB_REPL_USER') }}"
+    DB_REPL_PASSWORD: "{{ lookup('env', 'DB_REPL_PASSWORD') }}"
+    DB_REPL_HOST: "{{ lookup('env', 'DB_REPL_HOST') }}"
+    DB_REPL_PORT: "{{ lookup('env', 'DB_REPL_PORT') }}"
+    TOKEN: "{{ lookup('env', 'TOKEN') }}"
+  hosts:
+    localhost:
+      ansible_connection: local
