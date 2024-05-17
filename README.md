@@ -4,6 +4,6 @@
 
 Установите репозиторий и добавьте .env в корневую папку проекта
 
-# git clone --branch ansible --single-branch https://github.com/alkashara/PT_START2024.git
+ git clone --branch ansible --single-branch https://github.com/alkashara/PT_START2024.git
 
 Запустите playbook и все поставиться автоматически!
