@@ -1,19 +1,19 @@
 -- Проверка, существует ли пользователь replicator, и создание его, если он не существует
 DO $$ 
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{{ DB_REPL_USER }}') THEN
-    CREATE USER {{ DB_REPL_USER }} WITH REPLICATION ENCRYPTED PASSWORD '{{ DB_REPL_PASSWORD }}';
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'replicator') THEN
+    CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD 'NewPassword123';
   END IF;
 END $$;
 
 -- Создание слота репликации
 SELECT pg_create_physical_replication_slot('replication_slot');
 
--- Создание базы данных {{ DB_DATABASE }}, если она еще не существует
+-- Создание базы данных new_database, если она еще не существует
 DO $$ 
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '{{ DB_DATABASE }}') THEN
-    CREATE DATABASE {{ DB_DATABASE }};
+  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'new_database') THEN
+    CREATE DATABASE new_database;
   END IF;
 END $$;
 
@@ -36,7 +36,7 @@ INSERT INTO emails (email) VALUES ('test1@test.org'), ('test2@test.dot');
 INSERT INTO phonenums (phonenum) VALUES ('89323243456'), ('8 (999) 123 34 45');
 
 -- Предоставление прав пользователю replicator на чтение и запись в таблицу emails
-GRANT SELECT, INSERT ON emails TO {{ DB_REPL_USER }};
+GRANT SELECT, INSERT ON emails TO replicator;
 
 -- Предоставление прав пользователю replicator на чтение и запись в таблицу phonenums
-GRANT SELECT, INSERT ON phonenums TO {{ DB_REPL_USER }};
+GRANT SELECT, INSERT ON phonenums TO replicator;
