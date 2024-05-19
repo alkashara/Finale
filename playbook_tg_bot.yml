@@ -1,180 +1,271 @@
-- name: Setup PostgreSQL on localhost
-  hosts: localhost
-  become: true
-
-  vars:
-    db_user: "{{ db_user }}"
-    db_password: "{{ db_password }}"
-    db_name: "{{ db_name }}"
-    db_host: "{{ db_host }}"
-    db_port: "{{ db_port | int }}"
-    pg_hba_conf: "/etc/postgresql/14/main/pg_hba.conf"
-    postgresql_conf: "/etc/postgresql/14/main/postgresql.conf"
-    init_sql_path: "./init.sql"  # Relative path to init.sql
-    repo_url: "https://github.com/alkashara/PT_START2024.git"
-    repo_version: "bot"
-    bot_directory: "/opt/tg_bot"
-    bot_token: "{{ bot_token }}"  # Use bot_token from extra vars
-
-  pre_tasks:
-    - name: Update apt cache
-      apt:
-        update_cache: yes
-
-    - name: Check if TOKEN is defined
-      fail:
-        msg: "The TOKEN environment variable is not set."
-      when: bot_token == ""
-
+- hosts: db_host
+  vars_files:
+    - ./vars.yml
   tasks:
     - name: Install PostgreSQL
+      become: yes
       apt:
-        name: postgresql
-        state: present
+        pkg:
+          - postgresql
+          - postgresql-contrib
+          - python3-psycopg2
+        state: latest
 
-    - name: Ensure PostgreSQL is started
+    - name: Start PostgreSQL
+      become: yes
       service:
         name: postgresql
         state: started
-        enabled: yes
 
-    - name: Install pip
-      apt:
-        name: python3-pip
-        state: present
+    - name: Allow remote auth
+      become: yes
+      become_user: postgres
+      postgresql_pg_hba:
+        dest: /etc/postgresql/14/main/pg_hba.conf
+        contype: "host"
+        databases: "all"
+        users: "all"
+        address: "0.0.0.0/0"
+        method: "md5"
+        create: true
 
-    - name: Install psycopg2-binary dependencies
-      apt:
-        name: libpq-dev
-        state: present
+    - name: Allow replication connections on primary
+      become: yes
+      become_user: postgres
+      postgresql_pg_hba:
+        dest: /etc/postgresql/14/main/pg_hba.conf
+        contype: "host"
+        databases: "replication"
+        users: "replicator"
+        address: "0.0.0.0/0"
+        method: "md5"
+        create: true
 
-    - name: Install virtualenv
-      pip:
-        name: virtualenv
-        state: present
+    - name: Allow peer authentication for local connections on primary
+      become: yes
+      become_user: postgres
+      postgresql_pg_hba:
+        dest: /etc/postgresql/14/main/pg_hba.conf
+        contype: "local"
+        databases: "all"
+        users: "all"
+        method: "peer"
+        create: true
 
-    - name: Allow md5 password authentication for all users
+    - name: Set postgresql.conf parameters for replication
+      become: yes
+      become_user: postgres
       lineinfile:
-        path: "{{ pg_hba_conf }}"
-        regexp: '^#?local\s+all\s+all\s+peer$'
-        line: 'local   all             all                                     md5'
+        path: /etc/postgresql/14/main/postgresql.conf
+        regexp: '^#?(listen_addresses|wal_level|max_wal_senders|max_replication_slots|archive_mode|archive_command)'
+        line: "{{ item.key }} = '{{ item.value }}'"
+      with_dict:
+        listen_addresses: '*'
+        wal_level: 'replica'
+        max_wal_senders: '10'
+        max_replication_slots: '10'
+        archive_mode: 'on'
+        archive_command: 'cp %p /var/lib/postgresql/14/main/archive/%f'
 
-    - name: Allow peer authentication for postgres user
-      lineinfile:
-        path: "{{ pg_hba_conf }}"
-        insertafter: '^local\s+all\s+all\s+md5$'
-        line: 'local   all             postgres                                peer'
-
-    - name: Allow remote connections in pg_hba.conf
-      lineinfile:
-        path: "{{ pg_hba_conf }}"
-        regexp: '^#?host\s+all\s+all\s+127.0.0.1/32\s+md5$'
-        line: 'host    all             all             0.0.0.0/0               md5'
-
-    - name: Ensure PostgreSQL is listening on all interfaces
-      lineinfile:
-        path: "{{ postgresql_conf }}"
-        regexp: "^#listen_addresses = 'localhost'"
-        line: "listen_addresses = '*'"
-        state: present
-
-    - name: Restart PostgreSQL to apply authentication changes
+    - name: Restart PostgreSQL on primary to apply configuration changes
+      become: yes
       service:
         name: postgresql
         state: restarted
 
-    - name: Create PostgreSQL user
+    - name: Create replication user
+      become: yes
       become_user: postgres
-      community.postgresql.postgresql_user:
-        name: "{{ db_user }}"
-        password: "{{ db_password }}"
+      postgresql_user:
+        name: replicator
+        password: "{{ DB_PASSWORD }}"
+        role_attr_flags: "REPLICATION"
         state: present
-        login_user: postgres
-        login_unix_socket: "/var/run/postgresql"
-        port: "{{ db_port }}"
-        db: postgres
-
-    - name: Create PostgreSQL database
-      become_user: postgres
-      community.postgresql.postgresql_db:
-        name: "{{ db_name }}"  # Ensure this matches the expected database name
-        owner: "{{ db_user }}"
-        state: present
-        login_user: postgres
-        login_unix_socket: "/var/run/postgresql"
-        port: "{{ db_port }}"
-        db: postgres
-
-    - name: Create .env file for the bot
-      copy:
-        dest: "{{ bot_directory }}/bot/.env"
-        content: |
-          DB_USER={{ db_user }}
-          DB_PASSWORD={{ db_password }}
-          DB_DATABASE={{ db_name }}  # Use DB_DATABASE to match bot.py
-          DB_HOST={{ db_host }}
-          DB_PORT={{ db_port }}
-          TOKEN={{ bot_token }}
-
-    - name: Verify .env file contents
-      command: cat {{ bot_directory }}/bot/.env
-      register: env_file_contents
-
-    - name: Show .env file contents
-      debug:
-        var: env_file_contents.stdout_lines
-
-    - name: Run init.sql
-      command: >
-        psql -U {{ db_user }} -d {{ db_name }} -f {{ init_sql_path }}
-      args:
-        chdir: "{{ playbook_dir }}"  # Ensure the command runs in the playbook directory
       environment:
-        PGPASSWORD: "{{ db_password }}"
+        PGUSER: postgres
+        PGPASSWORD: "{{ DB_PASSWORD }}"
+
+    - name: Create database
+      become: yes
       become_user: postgres
-
-    - name: Install git
-      apt:
-        name: git
+      postgresql_db:
+        name: "{{ DB_DATABASE }}"
         state: present
+      environment:
+        PGUSER: postgres
+        PGPASSWORD: "{{ DB_PASSWORD }}"
 
-    - name: Clone the bot repository
-      git:
-        repo: "{{ repo_url }}"
-        dest: "{{ bot_directory }}"
-        version: "{{ repo_version }}"
-        force: yes
+    - name: Restart PostgreSQL on primary after creating database
+      become: yes
+      service:
+        name: postgresql
+        state: restarted
 
-    - name: Create virtual environment
-      command: python3 -m venv {{ bot_directory }}/venv
-      args:
-        creates: "{{ bot_directory }}/venv"
+    - name: Copy init.sql to DB_HOST
+      become: yes
+      copy:
+        src: "init.sql"
+        dest: "/tmp/init.sql"
 
-    - name: Install Python dependencies
-      pip:
-        requirements: "{{ bot_directory }}/bot/requirements.txt"
-        virtualenv: "{{ bot_directory }}/venv"
+    - name: Execute init.sql
+      become: yes
+      become_user: postgres
+      command: psql -d "{{ DB_DATABASE }}" -f /tmp/init.sql
+      environment:
+        PGPASSWORD: "{{ DB_PASSWORD }}"
 
-    - name: Install python-dotenv
-      pip:
-        name: python-dotenv
-        virtualenv: "{{ bot_directory }}/venv"
+    - name: Restart PostgreSQL on primary after executing init.sql
+      become: yes
+      service:
+        name: postgresql
+        state: restarted
 
-    - name: Print environment variables for debugging
-      shell: |
-        source {{ bot_directory }}/venv/bin/activate
-        set -a
-        . {{ bot_directory }}/bot/.env
-        set +a
-        env | grep DB_
-      register: env_vars
+- hosts: db_repl_host
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Install PostgreSQL
+      become: yes
+      apt:
+        pkg:
+          - postgresql
+          - postgresql-contrib
+          - python3-psycopg2
+        state: latest
 
-    - name: Show environment variables
+    - name: Start PostgreSQL
+      become: yes
+      service:
+        name: postgresql
+        state: started
+
+    - name: Clear replication directory
+      become: yes
+      file:
+        state: absent
+        path: /var/lib/postgresql/14/main
+
+    - name: Allow replication connections on replica
+      become: yes
+      become_user: postgres
+      postgresql_pg_hba:
+        dest: /etc/postgresql/14/main/pg_hba.conf
+        contype: "host"
+        databases: "replication"
+        users: "replicator"
+        address: "0.0.0.0/0"
+        method: "md5"
+        create: true
+
+    - name: Allow peer authentication for local connections on replica
+      become: yes
+      become_user: postgres
+      postgresql_pg_hba:
+        dest: /etc/postgresql/14/main/pg_hba.conf
+        contype: "local"
+        databases: "all"
+        users: "all"
+        method: "peer"
+        create: true
+
+    - name: Create log directory for PostgreSQL
+      become: yes
+      file:
+        path: /var/lib/postgresql/data/pg_log
+        state: directory
+        owner: postgres
+        group: postgres
+        mode: '0755'
+
+    - name: Set postgresql.conf parameters for hot standby
+      become: yes
+      become_user: postgres
+      lineinfile:
+        path: /etc/postgresql/14/main/postgresql.conf
+        regexp: '^#?(hot_standby|logging_collector|log_directory|log_filename|log_statement)'
+        line: "{{ item.key }} = '{{ item.value }}'"
+      with_dict:
+        hot_standby: 'on'
+        logging_collector: 'on'
+        log_directory: '/var/lib/postgresql/data/pg_log'
+        log_filename: 'postgresql-%Y-%m-%d_%H%M%S.log'
+        log_statement: 'all'
+
+    - name: Ensure PostgreSQL has write permissions on the log directory
+      become: yes
+      command: chown -R postgres:postgres /var/lib/postgresql/data/pg_log
+
+    - name: Check PostgreSQL config changes
+      become: yes
+      shell: cat /etc/postgresql/14/main/postgresql.conf | grep -E 'hot_standby|logging_collector|log_directory|log_filename|log_statement'
+      register: pg_config_output
+
+    - name: Display PostgreSQL config changes
       debug:
-        var: env_vars.stdout_lines
+        var: pg_config_output.stdout_lines
 
-    - name: Run the bot.py script
-      command: >
-        bash -c 'source {{ bot_directory }}/venv/bin/activate && set -a && . {{ bot_directory }}/bot/.env && set +a && python {{ bot_directory }}/bot/bot.py'
-      args:
-        chdir: "{{ bot_directory }}/bot"
+    - name: Restart PostgreSQL on replica to apply configuration changes
+      become: yes
+      service:
+        name: postgresql
+        state: restarted
+
+    - name: Start replication process
+      become: yes
+      become_user: postgres
+      environment:
+        PGUSER: replicator
+        PGPASSWORD: "{{ DB_PASSWORD }}"
+      shell: pg_basebackup --pgdata=/var/lib/postgresql/14/main -R --slot=replication_slot --host="{{ DB_HOST }}" --port="{{ DB_PORT }}"
+
+    - name: Restart PostgreSQL on replica after starting replication
+      become: yes
+      service:
+        name: postgresql
+        state: restarted
+
+    - name: Check if log files are created
+      become: yes
+      shell: ls -l /var/lib/postgresql/data/pg_log
+      register: log_files
+
+    - name: Display log files
+      debug:
+        var: log_files.stdout_lines
+
+- hosts: bot_host
+  tasks:
+    - name: Install Git & pip3
+      become: yes
+      apt:
+        pkg:
+          - python3-pip
+          - git
+          - libpq-dev
+
+    - name: Create project directory
+      become: yes
+      file:
+        path: /home/ansible/bot/
+        state: directory
+
+    - name: Clone repo
+      become: yes
+      git:
+        repo: "https://github.com/alkashara/PT_START2024/"
+        dest: "/home/ansible/bot/"
+
+    - name: Install Python modules
+      become: yes
+      pip:
+        requirements: "/home/ansible/bot/bot/requirements.txt"
+
+    - name: Copy .env file to BOT_HOST
+      become: yes
+      copy:
+        src: ".env"
+        dest: "/home/ansible/bot/bot/.env"
+
+    - name: Start bot.py
+      become: yes
+      shell: python3 /home/ansible/bot/bot/bot.py
