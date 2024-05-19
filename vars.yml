@@ -1,0 +1,5 @@
+DB_DATABASE: "new_database"
+DB_PASSWORD: "EditorPassword123"
+DB_HOST: "192.168.209.165"
+DB_PORT: "5432"
+DB_USERNAME: "editor"
