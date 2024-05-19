@@ -35,8 +35,20 @@ INSERT INTO emails (email) VALUES ('test1@test.org'), ('test2@test.dot');
 -- Вставка данных в таблицу phonenums
 INSERT INTO phonenums (phonenum) VALUES ('89323243456'), ('8 (999) 123 34 45');
 
--- Предоставление прав пользователю replicator на чтение и запись в таблицу emails
-GRANT SELECT, INSERT ON emails TO replicator;
+-- Создание нового пользователя editor
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'editor') THEN
+    CREATE USER editor WITH ENCRYPTED PASSWORD 'EditorPassword123';
+  END IF;
+END $$;
 
--- Предоставление прав пользователю replicator на чтение и запись в таблицу phonenums
-GRANT SELECT, INSERT ON phonenums TO replicator;
+-- Предоставление всех привилегий на базу данных new_database пользователю editor
+GRANT ALL PRIVILEGES ON DATABASE new_database TO editor;
+
+GRANT USAGE, SELECT ON SEQUENCE emails_id_seq TO editor;
+
+GRANT USAGE, SELECT ON SEQUENCE phonenums_id_seq TO editor;
+
+-- Предоставление всех привилегий на все таблицы в схеме public пользователю editor
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO editor;
