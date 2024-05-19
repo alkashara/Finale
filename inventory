@@ -1,7 +1,8 @@
-[db]
-localhost
+[db_host]
+db_host ansible_host=192.168.209.165 ansible_user=kali ansible_password=kali ansible_become_pass=kali
 
-[bot]
-localhost
+[db_repl_host]
+db_repl_host ansible_host=192.168.209.154 ansible_user=kali ansible_password=kali ansible_become_pass=kali
 
-[db_repl]
+[bot_host]
+bot_host ansible_host=192.168.209.155 ansible_user=kali ansible_password=kali ansible_become_pass=kali
