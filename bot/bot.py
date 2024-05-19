@@ -90,7 +90,11 @@ def get_phone_numbers(message):
 @bot.message_handler(commands=['get_repl_logs'])
 def get_release(message):
     try:
-        release_info = ssh_command('tail -n 10 /var/log/postgresql/postgresql-16-main.log')
+        release_info = ssh_command('tail -n 10 /var/lib/postgresql/data/pg_log/postgresql-*.log')
+        if not release_info.strip():
+            bot.reply_to(message, "Лог файл пуст или не удалось получить его содержимое.")
+            return
+
         bot.reply_to(message, release_info)
     except Exception as e:
         bot.reply_to(message, f"Произошла ошибка: {e}")

@@ -1,4 +1,5 @@
 version: '3.3'
+
 services:
   bot:
     image: tg_bot
@@ -25,14 +26,14 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256"
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     env_file:
       - .env
     command: >
       postgres
-      -c listen_addresses=*
-      -c unix_socket_directories=/var/run/postgresql
+      -c listen_addresses='*'
+      -c unix_socket_directories='/var/run/postgresql'
       -c log_replication_commands=on
       -c archive_mode=on
       -c wal_log_hints=on
@@ -44,10 +45,11 @@ services:
       -c password_encryption=scram-sha-256
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db/log:/var/log/postgresql
     networks:
       - mynetwork
     healthcheck:
-      test: 'pg_isready -U ${DB_USER} --dbname=${DB_DATABASE}'
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER} --dbname=${DB_DATABASE}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -69,6 +71,10 @@ services:
       - db
     networks:
       - mynetwork
+    volumes:
+      - ./db_repl/log:/var/log/postgresql
+    entrypoint: /usr/local/bin/start.sh
+    user: postgres  # Запуск от имени пользователя postgres
 
 networks:
   mynetwork:
