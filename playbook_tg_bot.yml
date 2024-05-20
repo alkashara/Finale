@@ -67,6 +67,28 @@
         archive_mode: 'on'
         archive_command: 'cp %p /var/lib/postgresql/14/main/archive/%f'
 
+    - name: Set log parameters in postgresql.conf
+      become: yes
+      become_user: postgres
+      lineinfile:
+        path: /etc/postgresql/14/main/postgresql.conf
+        regexp: '^#?(logging_collector|log_directory|log_filename|log_statement)'
+        line: "{{ item.key }} = '{{ item.value }}'"
+      with_dict:
+        logging_collector: 'on'
+        log_directory: '/tmp'
+        log_filename: 'pg.log'
+        log_statement: 'all'
+
+    - name: Create log directory for PostgreSQL
+      become: yes
+      file:
+        path: /tmp
+        state: directory
+        owner: postgres
+        group: postgres
+        mode: '0755'
+
     - name: Restart PostgreSQL on primary to apply configuration changes
       become: yes
       service:
@@ -171,7 +193,7 @@
     - name: Create log directory for PostgreSQL
       become: yes
       file:
-        path: /var/lib/postgresql/data/pg_log
+        path: /tmp
         state: directory
         owner: postgres
         group: postgres
@@ -182,27 +204,24 @@
       become_user: postgres
       lineinfile:
         path: /etc/postgresql/14/main/postgresql.conf
-        regexp: '^#?(hot_standby|logging_collector|log_directory|log_filename|log_statement)'
+        regexp: '^#?(hot_standby|logging_collector|log_directory|log_filename|log_statement|primary_conninfo)'
         line: "{{ item.key }} = '{{ item.value }}'"
       with_dict:
         hot_standby: 'on'
         logging_collector: 'on'
-        log_directory: '/var/lib/postgresql/data/pg_log'
-        log_filename: 'postgresql-%Y-%m-%d_%H%M%S.log'
+        log_directory: '/tmp'
+        log_filename: 'pg.log'
         log_statement: 'all'
+        primary_conninfo: 'host={{ DB_HOST }} port=5432 user=replicator password={{ DB_PASSWORD }} sslmode=require application_name=my_replica keepalives_idle=60 keepalives_interval=10 keepalives_count=5'
 
     - name: Ensure PostgreSQL has write permissions on the log directory
       become: yes
-      command: chown -R postgres:postgres /var/lib/postgresql/data/pg_log
+      command: chown -R postgres:postgres /tmp
 
     - name: Check PostgreSQL config changes
       become: yes
-      shell: cat /etc/postgresql/14/main/postgresql.conf | grep -E 'hot_standby|logging_collector|log_directory|log_filename|log_statement'
+      shell: cat /etc/postgresql/14/main/postgresql.conf | grep -E 'hot_standby|logging_collector|log_directory|log_filename|log_statement|primary_conninfo'
       register: pg_config_output
-
-    - name: Display PostgreSQL config changes
-      debug:
-        var: pg_config_output.stdout_lines
 
     - name: Restart PostgreSQL on replica to apply configuration changes
       become: yes
@@ -216,18 +235,13 @@
       environment:
         PGUSER: replicator
         PGPASSWORD: "{{ DB_PASSWORD }}"
-      shell: pg_basebackup --pgdata=/var/lib/postgresql/14/main -R --slot=replication_slot --host="{{ DB_HOST }}" --port="{{ DB_PORT }}"
+      shell: pg_basebackup --pgdata=/var/lib/postgresql/14/main -R --slot=replication_slot --host="{{ DB_HOST }}" --port=5432
 
     - name: Restart PostgreSQL on replica after starting replication
       become: yes
       service:
         name: postgresql
         state: restarted
-
-    - name: Check if log files are created
-      become: yes
-      shell: ls -l /var/lib/postgresql/data/pg_log
-      register: log_files
 
     - name: Display log files
       debug:
