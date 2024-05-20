@@ -7,14 +7,19 @@ RUN apt-get update && \
 # Настраиваем пользователя postgres
 RUN echo 'postgres:postgres' | chpasswd
 
-# Настройка sudo без пароля для пользователя postgres
+# Создаем пользователя для репликации
+RUN useradd -m -r -s /bin/bash replicator && echo 'replicator:NewPassword123' | chpasswd
+
+# Настройка sudo без пароля для пользователей postgres и replicator
 RUN echo 'postgres ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+RUN echo 'replicator ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Создаем необходимые директории и устанавливаем права
-RUN mkdir -p /oracle/pg_data/archive /var/lib/postgresql/data /var/lib/postgresql/data/pg_log && \
+RUN mkdir -p /oracle/pg_data/archive /var/lib/postgresql/data /var/lib/postgresql/data/pg_log /tmp && \
     chown -R postgres:postgres /oracle/pg_data /var/lib/postgresql /var/run/postgresql && \
     chmod 700 /var/lib/postgresql/data && \
-    chmod 700 /var/lib/postgresql/data/pg_log
+    chmod 700 /var/lib/postgresql/data/pg_log && \
+    chown -R postgres:postgres /tmp && chmod 1777 /tmp
 
 # Настраиваем SSH
 RUN mkdir /var/run/sshd
@@ -37,6 +42,9 @@ EXPOSE 22
 # Копируем стартовый скрипт и делаем его исполняемым
 COPY start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
+
+# Устанавливаем права на /tmp
+RUN chown -R postgres:postgres /tmp && chmod 1777 /tmp
 
 # Меняем пользователя на postgres
 USER postgres

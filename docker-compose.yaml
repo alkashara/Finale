@@ -61,8 +61,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "${DB_REPL_PORT}:5432"
+      - "2222:22"  # Добавляем порт для SSH
     container_name: db-repl-image
     environment:
+      POSTGRES_USER: ${DB_REPL_USER}
+      POSTGRES_PASSWORD: ${DB_REPL_PASSWORD}
       PGUSER: ${DB_REPL_USER}
       PGPASSWORD: ${DB_REPL_PASSWORD}
     env_file:
@@ -73,6 +76,7 @@ services:
       - mynetwork
     volumes:
       - ./db_repl/log:/var/log/postgresql
+      - pgdata_repl:/var/lib/postgresql/data
     entrypoint: /usr/local/bin/start.sh
     user: postgres  # Запуск от имени пользователя postgres
 
@@ -82,3 +86,6 @@ networks:
     ipam:
       config:
         - subnet: ${DOCKER_NET}
+
+volumes:
+  pgdata_repl:
