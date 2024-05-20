@@ -90,7 +90,7 @@ def get_phone_numbers(message):
 @bot.message_handler(commands=['get_repl_logs'])
 def get_release(message):
     try:
-        release_info = ssh_command('grep -i "replication\|streaming\|WAL" /tmp/pg.log')
+        release_info = ssh_command('tail -n 50 /tmp/pg.log | grep -i "replication\|streaming\|WAL"')
         if not release_info.strip():
             bot.reply_to(message, "Лог файл пуст или не удалось получить его содержимое.")
             return
